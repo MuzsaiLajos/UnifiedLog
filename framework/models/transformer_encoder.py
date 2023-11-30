@@ -147,10 +147,9 @@ class TransformerEncoder():
                         for key in val_loaders.keys():
                             all_val_losses[key].append(sum(val_losses[key])/len(val_losses[key]))       
                     all_train_losses.append(sum(train_losses)/len(train_losses))
-                    print(f"Epoch: {epoch} step {step}, train loss: {all_train_losses[-1]}, ", end="")
+                    print(f"Epoch: {epoch} step {step}:\n\tTrain loss: \t\t\t\t{all_train_losses[-1]:.04f}")
                     for key in val_loaders.keys():
-                            print(f"val_{key}_loss: {all_val_losses[key][-1]} ", end="")
-                            print("")
+                            print(f"\tVal loss on {key}: \t\t{all_val_losses[key][-1]:.04f}")
                     if self.run is not None:
                         self.run["transformer_encoder"]["train_loss"].log(all_train_losses[-1])
                         for key in val_loaders.keys():
@@ -158,13 +157,12 @@ class TransformerEncoder():
             if save_path is not None:
                 _save_path = save_path
                 if save_every_epoch:
-                    print("test savepath:", _save_path)
                     _save_path = ".".join(_save_path.split(".")[:-1]) + f"_epoch_{epoch+1}." + _save_path.split(".")[-1]
                 if not os.path.isdir("/".join(_save_path.split("/")[:-1])):
                     os.mkdir("/".join(_save_path.split("/")[:-1])+"/")
                 self.run["transformer_encoder"]["save_path"] = _save_path
                 pickle.dump(self.transformer, open(_save_path, "wb"))
-        print(f"training took {time.time()-t0:.2f}s")
+        print(f"Training took {time.time()-t0:.2f}s")
 
 
     def encode(self, data, batch_size, padding_value):
@@ -248,6 +246,6 @@ class TransformerEncoder():
             if "HDFS_1" in key or "hadoop" in key.lower():
                 print(f"Encoded {key} blocks={len(data[key])}")
             else:
-                print(f"Encoded data's shape. key={key}  {all_encoded[key].shape}")
+                print(f"Encoded {key} lines: {all_encoded[key].shape[0]}")
         return all_encoded
     

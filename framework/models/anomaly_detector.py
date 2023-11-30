@@ -214,7 +214,7 @@ class AnomalyDetector():
                 dropout=dropout
             )
         else:
-            print(f"Loading anomaly detector...({load_path})")
+            print(f"Loading anomaly detector...(path={load_path})")
             self.model = pickle.load(open(load_path, "rb"))
         self.max_len = max_len
         self.ff_dim = ff_dim
@@ -359,21 +359,17 @@ class AnomalyDetector():
             self._Y_test[key] = []
             self._X_test[key] = []
             if "hadoop" in key:
-                print("hadoop_normal_indexes =", hadoop_normal_indexes)
                 for s_index, e_index in hadoop_normal_indexes[:int(len(hadoop_normal_indexes) * train_val_test_split[0])]:
-                    #print("adding to train indexes:", s_index, ":",e_index)
                     _Y_train += _Y[key][s_index:e_index]
                     _X_train += _X[key][s_index:e_index]
                 
                 for s_index, e_index in hadoop_normal_indexes[int(len(hadoop_normal_indexes) * train_val_test_split[0]):int(len(hadoop_normal_indexes) * train_val_test_split[1])]:
-                    #print("adding to val indexes:", s_index, ":",e_index)
                     _Y_val[key] += _Y[key][s_index:e_index]
                     _X_val[key] += _X[key][s_index:e_index]
 
                 self._Y_test[key] = []
                 self._X_test[key] = []
                 for s_index, e_index in hadoop_normal_indexes[int(len(hadoop_normal_indexes) * train_val_test_split[1]):]:
-                    #print("adding to test indexes:", s_index, ":",e_index)
                     self._Y_test[key] += _Y[key][s_index:e_index]
                     self._X_test[key] += _X[key][s_index:e_index]
                     
@@ -413,9 +409,9 @@ class AnomalyDetector():
         _Y_train = torch.stack(_Y_train)
         _X_train = torch.stack(_X_train)
 
-        print(f"Train samples: {len(_Y_train)}")
-        print(f"Validation samples: {[len(_Y_val[key]) for key in _Y_val.keys()]}")
-        print(f"Test samples: {[len(self._Y_test[key]) for key in self._Y_test.keys()]}")
+        print(f"Train samples:\t\t {len(_Y_train)}")
+        print(f"Validation samples:\t {sum([len(_Y_val[key]) for key in _Y_val.keys()])}")
+        print(f"Test samples:\t\t {sum([len(self._Y_test[key]) for key in self._Y_test.keys()])}")
 
         if self.run is not None:
             self.run["anomaly_detector"]["train_samples"] = len(_Y_train)
@@ -428,8 +424,6 @@ class AnomalyDetector():
             _Y_train,
         )
         train_loader = DataLoader(train_generator, num_workers=0, batch_size=batch_size, shuffle=True)
-        print("len(train_generator)*batch_size", len(train_generator)*batch_size)
-        print("len(train_loader)*batch_size", len(train_loader)*batch_size)
         val_loaders = {}
         for key in _X_val.keys():
             val_generator = BatchGenerator(
@@ -477,7 +471,7 @@ class AnomalyDetector():
                 loss.backward()
                 optimizer.step()
 
-                if (step*batch_size) % min([1000000,len(train_loader)*batch_size]) <= batch_size: # min([1000000,len(train_loader)*batch_size])
+                if (step*batch_size) % min([1000000,len(train_loader)*batch_size]) < batch_size: # min([1000000,len(train_loader)*batch_size])
                     #validation
                     self.model = self.model.eval()
                     with torch.no_grad():
@@ -509,7 +503,6 @@ class AnomalyDetector():
                             val_preds = np.array(val_preds)
                             val_truth = np.array(val_truth)
                             report[key] = precision_recall_fscore_support(val_truth, val_preds, zero_division=0)
-                            #print(f"Key={key} -> report: {report[key]}")
                             running_val_loss[key] = (running_val_loss[key]/len(val_loaders[key]))/batch_size
 
                     for key in _X_val.keys():
@@ -521,38 +514,46 @@ class AnomalyDetector():
                         except:
                             val_precisions[key].append(-1)
                             val_recalls[key].append(-1)
-                            val_f1s[key].append(-1)
-                    if self.run is not None:
-                        for key in _X_val.keys():
+
+                    for key in _X_val.keys():
+                        if self.run is not None:
                             self.run["anomaly_detector"]["val_loss"][key].log(running_val_loss[key])
-                            try:
+                        try:
+                            if self.run is not None:
                                 self.run["anomaly_detector"]["val_precision"][key].log(report[key][0][1])
                                 self.run["anomaly_detector"]["val_recall"][key].log(report[key][1][1])
                                 self.run["anomaly_detector"]["val_f1"][key].log(report[key][2][1])
-                            except:
-                                val_precisions[key].append(-1)
-                                val_recalls[key].append(-1)
-                                val_f1s[key].append(-1)
-
-                        average_val_loss = sum([running_val_loss[key] for key in running_val_loss.keys()])/len(running_val_loss.keys())
-                        early_stopping(average_val_loss, model=self.model)
-                        print(f"Epoch {epoch} step {step} average val loss: {average_val_loss}")
-                        for key in _X_val.keys():
-                            try:
-                                print(f"{key}: validation loss:{running_val_loss[key]:.5f} val_accuracy:{accuracy[key]:.5f} val_precision:{report[key][0][1]:.5f} val_recall:{report[key][1][1]:.5f} val_f1:{report[key][2][1]:.5f}")
-                            except:
-                                print(f"{key}: validation loss:{running_val_loss[key]:.5f} val_accuracy:{accuracy[key]:.5f} val_precision:{-1} val_recall:{-1} val_f1:{-1}")
-
-                        if self.run is not None:
-                            self.run["anomaly_detector"]["average_val_loss"].log(average_val_loss)
-                        if early_stopping.early_stop:
+                            val_precisions[key].append(report[key][0][1])
+                            val_recalls[key].append(report[key][1][1])
+                            val_f1s[key].append(report[key][2][1])
+                        except:
                             if self.run is not None:
-                                self.run["anomaly_detector"]["early_stop"] = f"epoch={epoch}"
-                                self.model = early_stopping.best_model
-                            return
+                                self.run["anomaly_detector"]["val_precision"][key].log(0)
+                                self.run["anomaly_detector"]["val_recall"][key].log(0)
+                                self.run["anomaly_detector"]["val_f1"][key].log(0)
+                            val_precisions[key].append(-1)
+                            val_recalls[key].append(-1)
+                            val_f1s[key].append(-1)
+
+                    average_val_loss = sum([running_val_loss[key] for key in running_val_loss.keys()])/len(running_val_loss.keys())
+                    early_stopping(average_val_loss, model=self.model)
+                    print(f"Epoch {epoch} step {step}\n\tAverage val loss: {average_val_loss}")
+                    for key in _X_val.keys():
+                        try: # if dataset has block structure
+                            print(f"\tValidation {key}:\tLoss:{running_val_loss[key]:.4f}\t Accuracy:{accuracy[key]:.2f}\t Precision:{report[key][0][1]:.2f}\t Recall:{report[key][1][1]:.2f}\t F1:{report[key][2][1]:.2f}")
+                        except:
+                            print(f"\tValidation {key}:\tLoss:{running_val_loss[key]:.4f}\t Accuracy:{accuracy[key]:.2f}\t Precision:{-1}\t Recall:{-1}\t F1:{-1}")
+
+                    if self.run is not None:
+                        self.run["anomaly_detector"]["average_val_loss"].log(average_val_loss)
+                    if early_stopping.early_stop:
+                        if self.run is not None:
+                            self.run["anomaly_detector"]["early_stop"] = f"epoch={epoch}"
+                            self.model = early_stopping.best_model
+                        return
                 
                     running_loss = running_loss/len(train_loader)
-                    print(f"epoch {epoch} train loss:{running_loss:.5f}")
+                    print(f"Epoch {epoch}\t train loss:  {running_loss:.5f}")
                     losses.append(running_loss)
                     if self.run is not None:
                         self.run["anomaly_detector"]["train_loss"].log(running_loss)

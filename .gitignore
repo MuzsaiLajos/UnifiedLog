@@ -10,8 +10,10 @@ data_and_plots_for_paper
 *.neptune
 *_confs
 *.yaml
-~framework/example.yaml
 *test_logs
 *computer_logs
 *preprocessed_data
 archive
+
+~framework/example.yaml
+~framework/example_data

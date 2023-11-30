@@ -4,8 +4,8 @@ import neptune as neptune
 import os
 import torch
 import pickle
-from transformer_encoder import TransformerEncoder
-from anomaly_detector import AnomalyDetector
+from models.transformer_encoder import TransformerEncoder
+from models.anomaly_detector import AnomalyDetector
 import copy
 import argparse
 
@@ -108,7 +108,7 @@ def handle_encoder_training(transformer_encoder, params):
     and saving the model at specified intervals during training.
     """
     if params["transformer_encoder"]["epochs"] > 0:
-        print(f"Loading train data for encoder... ({params['transformer_encoder']['train_paths']})")
+        print(f"Loading train data for encoder... (Loaded {len(params['transformer_encoder']['train_paths'])} files)")
         if params["transformer_encoder"]["max_train_data_size"] is not None:
             print(f'Keeping the first {params["transformer_encoder"]["max_train_data_size"]} lines from each dataset.')
         transformer_encoder_train_data_dict = {}
@@ -199,7 +199,7 @@ def load_train_data_detector(params):
     For log names containing "HDFS_1" or "hadoop" (case-insensitive), the function creates nested dictionaries to organize data according to their respective subcategories.
     The loaded data is moved to the CUDA device for GPU acceleration.
     """
-    print(f'Loading train data for detector...({params["anomaly_detector"]["train_paths"]})')
+    print(f'Loading train data for detector...(Loaded {len(params["anomaly_detector"]["train_paths"])} files)')
     anomaly_detector_train_data_dict = {}
     for i in range(len(params["anomaly_detector"]["train_paths"])):
         with open(params["anomaly_detector"]["train_paths"][i], "rb") as file:
@@ -213,7 +213,7 @@ def load_train_data_detector(params):
             anomaly_detector_train_data_dict[log_name] = [torch.Tensor(x).long().to("cuda") for x in anomaly_detector_train_data]
     
     for key in anomaly_detector_train_data_dict.keys():
-        print(f"len(anomaly_detector_train_data_dict) (key={key}) = {len(anomaly_detector_train_data_dict[key])}")
+        print(f"Dataset {key} has \t\t {len(anomaly_detector_train_data_dict[key])} lines.")
     
     return anomaly_detector_train_data_dict
 
@@ -313,9 +313,6 @@ def load_test_data_detector(params):
             anomaly_detector_test_data = pickle.load(file)
         log_name = ".".join(params["anomaly_detector"]["test_data_paths"][i].split("/")[-1].split(".")[:-1])
         anomaly_detector_test_data_dict[log_name] = [torch.Tensor(x).long().to("cuda") for x in anomaly_detector_test_data]
-    
-    for key in anomaly_detector_test_data_dict.keys():
-        print(f"len(anomaly_detector_test_data_dict) (key={key}) = {len(anomaly_detector_test_data_dict[key])}")
 
     return anomaly_detector_test_data_dict
 
@@ -354,9 +351,6 @@ def load_test_labels_detector(params):
         log_name = ".".join(params["anomaly_detector"]["test_data_paths"][i].split("/")[-1].split(".")[:-1])
         anomaly_detector_test_labels_dict[log_name] = torch.Tensor(anomaly_detector_test_labels)
 
-    for key in anomaly_detector_test_labels_dict.keys():
-        print(f"anomaly_detector_test_labels_dict[{key}].shape = {anomaly_detector_test_labels_dict[key].shape}")
-
     return anomaly_detector_test_labels_dict
 
 
@@ -394,9 +388,9 @@ def encode_data(transformer_encoder, data, batch_size, pad_token_id):
     )
     for key in encoded.keys():
         if "HDFS_1" in key or "hadoop" in key.lower():
-            print(f"Encoded {key} blocks : {len(encoded[key])}")
+            print(f"Encoded {key} blocks:\t {len(encoded[key])}")
         else:
-            print(f"Encoded data's shape (key={key}): {encoded[key].shape}")
+            print(f"Encoded {key} lines\t: {encoded[key].shape}")
     return encoded
 
 
@@ -447,14 +441,6 @@ def main(conf_path):
 
     # Openstack label generation
     generate_openstack_labels(anomaly_detector_train_data_dict=anomaly_detector_train_data_dict, anomaly_detector_train_labels_dict=anomaly_detector_train_labels_dict)
-
-
-    for key in anomaly_detector_train_labels_dict.keys():
-        if "HDFS_1" in key or "hadoop" in key.lower():
-            print(f"anomaly_detector_train_labels_dict[{key}] -> number of blocks = {len(anomaly_detector_train_labels_dict[key].keys())}")
-            #print(f"anomaly_detector_train_labels_dict[{key}] -> number of lines = {sum(anomaly_detector_train_labels_dict[key].values())}")
-        else:
-            print(f"anomaly_detector_train_labels_dict[{key}].shape = {anomaly_detector_train_labels_dict[key].shape}")
 
 
     ### Loading test data
