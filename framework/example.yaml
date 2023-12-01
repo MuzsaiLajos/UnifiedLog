@@ -1,0 +1,43 @@
+name: example # Name of the run in neptune
+neptune_logging: false
+transformer_encoder:
+  train_paths: ["example_data/Thunderbird_NUM_special_token.pkl", "example_data/BGL_NUM_special_token.pkl"]     # list of train dataset paths
+  load_path: null # "saved_models/encoders/loghub/all_model_128/all_model_128_epoch_50.pkl"
+  save_path: null # "saved_models/example_model"
+  save_every_epoch: True
+  train_val_test_split: [0.8, 0.9]    # split points for train val and test data
+  mask_prob: 0.15
+  replace_prob: 0.9
+  num_tokens: 1002
+  max_seq_len: 128
+  attn_layers:
+    dim: 32
+    depth: 4
+    heads: 6
+  batch_size: 4096
+  lr: 0.00003
+  epochs: 3
+  mask_token_id: 1000
+  pad_token_id: 1001
+  max_train_data_size: 150000      # Maximum number of lineas from each dataset thet the model trains on
+anomaly_detector:
+  train_paths: ["example_data/BGL_NUM_special_token.pkl"]     # list of train dataset paths
+  label_paths: ["labels/BGL_labels.pkl"]
+  test_data_paths: []  #["example_data/example_Thunderbird.pkl"]
+  test_labels: [] #["example_data/example_Thunderbird_labels.pkl"]
+  load_path: null
+  save_path: null 
+  train_val_test_split: [0.8, 0.9]    # split points for train val and test data
+  lr_decay_step_size: 25
+  lr_decay_gamma: 0.9
+  early_stop_tolerance: 8
+  early_stop_min_delta: 0
+  batch_size: 32
+  epochs: 5
+  embed_dim: 32
+  ff_dim: 64
+  max_len: 20
+  num_heads: 8
+  dropout: 0.5
+  lr: 0.00003
+  balancing_ratio: 1

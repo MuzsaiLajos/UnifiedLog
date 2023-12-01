@@ -15,5 +15,5 @@ data_and_plots_for_paper
 *preprocessed_data
 archive
 
-~framework/example.yaml
-~framework/example_data
+!framework/example.yaml
+!framework/example_data

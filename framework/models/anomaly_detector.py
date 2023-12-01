@@ -250,6 +250,9 @@ class AnomalyDetector():
 
         pos_idx = [i for i, l in enumerate(y) if l == 1]
         neg_idx = [i for i, l in enumerate(y) if l == 0]
+        # Thorw exception if only one type of label exists
+        if len(pos_idx) == 0 or len(neg_idx) == 0:
+            raise Exception("Only one label is found in the training data of the detector.")
         if len(pos_idx) < len(neg_idx):
             pos_idx = torch.tensor(pos_idx)
             neg_idx = torch.tensor(neg_idx)

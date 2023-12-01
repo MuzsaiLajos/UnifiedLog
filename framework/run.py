@@ -513,7 +513,7 @@ if __name__ == '__main__':
                     )
 
     parser.add_argument('-c', '--config')       # option that takes a value
-    parser.add_argument('-t', '--threads')
+    parser.add_argument('-t', '--threads', default=20)
     args = parser.parse_args()
     torch.set_num_threads(int(args.threads))
 
