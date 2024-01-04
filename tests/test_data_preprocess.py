@@ -2,10 +2,11 @@ import unittest
 import os
 import sys
 sys.path.append("../")
+sys.path.append("../framework")
 import pickle
 from tempfile import TemporaryDirectory
 from unittest.mock import patch, call, create_autospec, MagicMock
-from DataPreprocess.data_preprocess import * 
+from data_preprocess.data_preprocess import * 
 import pandas as pd
 from tokenizers import Tokenizer, models, trainers, pre_tokenizers, decoders
 import pickle

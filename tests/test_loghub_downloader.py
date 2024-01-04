@@ -4,7 +4,8 @@ from unittest.mock import patch, call
 from tempfile import TemporaryDirectory
 import sys
 sys.path.append("../")
-from DataPreprocess.loghub_downloader import download_files, unzip_files
+sys.path.append("../framework")
+from data_preprocess.loghub_downloader import download_files, unzip_files
 
 class TestDownloadFiles(unittest.TestCase):
     def test_download_files(self):
