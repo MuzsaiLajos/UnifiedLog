@@ -460,7 +460,7 @@ if __name__ == "__main__":
     data_to_tokenize = get_data_to_tokenize(data_folder=args.data_folder, max_log_lines=args.max_log_lines, save_path=args.save_folder)
 
     # Create dataframe and suffle rows to mix data for the tokeniaztion
-    data_df = pd.DataFrame(np.hstack(list(data_to_tokenize.values())), columns=['log_text']).sample(frac=1).reset_index(drop=True)
+    data_df = pd.DataFrame({'log_text': [item for sublist in data_to_tokenize.values() for item in sublist]})
 
     print("Removing non-ascii characters from logs...")
     data_df['log_text'] = data_df['log_text'].apply(lambda x : replace_num(remove_non_ascii(x)))
