@@ -11,27 +11,6 @@ import numpy as np
 
 
 def remove_non_ascii(a_str):
-    """
-    Remove non-ASCII characters from a string.
-
-    Parameters:
-    - a_str (str): The input string containing ASCII and non-ASCII characters.
-
-    Returns:
-    str: The input string with non-ASCII characters removed.
-
-    Example:
-    ```python
-    input_str = "Hello, 你好, こんにちは"
-    cleaned_str = remove_non_ascii(input_str)
-    print(cleaned_str)
-    ```
-
-    Output:
-    ```
-    "Hello, , "
-    ```
-    """
     ascii_chars = set(string.printable)
 
     return ''.join(
@@ -39,28 +18,11 @@ def remove_non_ascii(a_str):
     )
 
 
+def replace_non_ascii(x):
+    return ''.join('[NONA]' if char not in string.printable else char for char in x)
+
+
 def replace_num(x):
-    """
-    Replace numerical digits in a string with a special token.
-
-    Parameters:
-    - x (str): The input string containing numerical digits.
-
-    Returns:
-    str: The input string with numerical digits replaced by the special token "[NUM]".
-
-    Example:
-    ```python
-    input_str = "There are 3 apples and 5 oranges."
-    replaced_str = replace_num(input_str)
-    print(replaced_str)
-    ```
-
-    Output:
-    ```
-    "There are [NUM] apples and [NUM] oranges."
-    ```
-    """
     for i in range(10):
         x = x.replace(str(i), "[NUM]")
     return x
@@ -134,7 +96,7 @@ def read_file_contents(file, max_log_lines, save_path, verbose=True):
     return data
 
 
-def train_tokenizer(vocab_size, save_folder, data_df):
+def train_tokenizer(vocab_size, save_folder, data_df, ascii_policy, num_policy):
     """
     Train a tokenizer using the WordPiece model on a DataFrame containing log texts.
 
@@ -166,7 +128,17 @@ def train_tokenizer(vocab_size, save_folder, data_df):
     print(f"========Using vocabulary from {files}=======")
 
     unk_token = "[UNK]"  # token for unknown words
-    spl_tokens = ["[CLS]","[SEP]","[NUM]", "[UNK]"]
+    spl_tokens = ["[CLS]","[SEP]", "[UNK]"]
+
+    if num_policy == "num_special_char":
+        spl_tokens.append("[NUM]")
+    elif num_policy == "0_9_special_char":
+        for i in range(10):
+            spl_tokens.append(str(i))
+            
+    if ascii_policy == "special_char":
+        spl_tokens.append("[NONA]")
+
     tokenizer = Tokenizer(WordPiece(unk_token=unk_token))
     trainer = WordPieceTrainer(
         vocab_size=vocab_size, 
@@ -444,12 +416,14 @@ def tokenize_Hadoop_for_detector(data_path, tokenizer, save_path, max_log_lines)
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog='data_preprocess',
-        description='This script preprocesses the datasets downloaded from Loghub.',
+        description='This script preprocesses the datasets downloaded from Loghub. \n ascii_policy: remove/special_char \n num_policy: special_char/keep',
     )
     parser.add_argument('-d', '--data_folder', required=True)
     parser.add_argument('-s', '--save_folder', required=True) 
     parser.add_argument('-v', '--vocab_size', default=1002) 
     parser.add_argument('-l', '--max_log_lines', default=5000000, type=int)
+    parser.add_argument('-a', '--ascii_policy', required=True, choices=["remove", "special_char"])
+    parser.add_argument('-n', '--num_policy', required=True, choices=["0_9_special_char", "num_special_char"])
     args = parser.parse_args()
 
     # Create the save folder if it doesn't exist
@@ -462,12 +436,24 @@ if __name__ == "__main__":
     # Create dataframe and suffle rows to mix data for the tokeniaztion
     data_df = pd.DataFrame({'log_text': [item for sublist in data_to_tokenize.values() for item in sublist]})
 
-    print("Removing non-ascii characters from logs...")
-    data_df['log_text'] = data_df['log_text'].apply(lambda x : replace_num(remove_non_ascii(x)))
-    print("Replacing numbers with the [NUM] special character in the logs...")
-    data_df['log_text'] = data_df['log_text'].apply(lambda x : replace_num(replace_num(x)))
+    if args.ascii_policy == "remove":
+        print("Removing non-ascii characters from logs...")
+        data_df['log_text'] = data_df['log_text'].apply(lambda x : remove_non_ascii(x))
+    elif args.ascii_policy == "special_char":
+        print("Replacing non-ascii characters with special token [NONA]...")
+        data_df['log_text'] = data_df['log_text'].apply(lambda x : replace_non_ascii(x))
+    else:
+        raise Exception("Wrong ascii policy set in arg")
 
-    trained_tokenizer = train_tokenizer(vocab_size=args.vocab_size, save_folder=args.save_folder, data_df=data_df)
+    if args.num_policy == "num_special_char":
+        print("Replacing numbers with the [NUM] special character in the logs...")
+        data_df['log_text'] = data_df['log_text'].apply(lambda x : replace_num(x))
+    elif args.num_policy == "0_9_special_char":
+        print("Keeping numbers as special characters in logs...")
+    else:
+        raise Exception("Wrong num policy set in arg")
+
+    trained_tokenizer = train_tokenizer(vocab_size=args.vocab_size, save_folder=args.save_folder, data_df=data_df, ascii_policy=args.ascii_policy, num_policy=args.num_policy)
 
     tokenize_files(files_dict=data_to_tokenize, save_folder=args.save_folder, trained_tokenizer=trained_tokenizer)
 
