@@ -16,7 +16,7 @@ data_and_plots_for_paper
 archive
 *plot_for_paper
 *tmp
-framework/data_preprocess/preprocessed_2024
+framework/data_preprocess/preprocessed*
 
 !framework/example.yaml
 !framework/example_data
