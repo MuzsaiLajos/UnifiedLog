@@ -1,7 +1,8 @@
 name: example # Name of the run in neptune
-neptune_logging: false
+neptune_logging: true
 transformer_encoder:
-  train_paths: ["example_data/Thunderbird_NUM_special_token.pkl", "example_data/BGL_NUM_special_token.pkl"]     # list of train dataset paths
+  #train_paths: ["/home/mlajos/UnifiedLog/framework/example_data/tokenized/example_BGL.pkl"]     # list of train dataset paths
+  train_paths: "/home/mlajos/UnifiedLog/framework/example_data/tokenized/"
   load_path: null # "saved_models/encoders/loghub/all_model_128/all_model_128_epoch_50.pkl"
   save_path: null # "saved_models/example_model"
   save_every_epoch: True
@@ -16,13 +17,13 @@ transformer_encoder:
     heads: 6
   batch_size: 4096
   lr: 0.00003
-  epochs: 3
+  epochs: 1
   mask_token_id: 1000
   pad_token_id: 1001
   max_train_data_size: 150000      # Maximum number of lineas from each dataset thet the model trains on
 anomaly_detector:
-  train_paths: ["example_data/BGL_NUM_special_token.pkl"]     # list of train dataset paths
-  label_paths: ["labels/BGL_labels.pkl"]
+  train_paths: ["/home/mlajos/UnifiedLog/framework/example_data/tokenized/example_BGL.pkl"]     # list of train dataset paths
+  label_paths: ["/home/mlajos/UnifiedLog/framework/example_data/labels/example_BGL_labels.pkl"]
   test_data_paths: []  #["example_data/example_Thunderbird.pkl"]
   test_labels: [] #["example_data/example_Thunderbird_labels.pkl"]
   load_path: null
@@ -33,7 +34,7 @@ anomaly_detector:
   early_stop_tolerance: 8
   early_stop_min_delta: 0
   batch_size: 32
-  epochs: 5
+  epochs: 1
   embed_dim: 32
   ff_dim: 64
   max_len: 20

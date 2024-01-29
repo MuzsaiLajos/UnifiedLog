@@ -17,6 +17,8 @@ archive
 *plot_for_paper
 *tmp
 framework/data_preprocess/preprocessed*
+*.env
+
 
 !framework/example.yaml
 !framework/example_data

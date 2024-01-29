@@ -8,28 +8,10 @@ from models.transformer_encoder import TransformerEncoder
 from models.anomaly_detector import AnomalyDetector
 import copy
 import argparse
-
+from dotenv import load_dotenv
+load_dotenv()
 
 def initialize_neptune():
-    """
-    Initializes Neptune logging for experiment tracking.
-
-    Raises:
-    - ValueError: If the environment variable NEPTUNE_API_TOKEN is not set.
-
-    Returns:
-    neptune.Run: An instance of the Neptune Run object for experiment tracking.
-
-    Example:
-    ```python
-    run = initialize_neptune()
-    ```
-
-    Note:
-    This function attempts to retrieve the Neptune API token from the environment variable NEPTUNE_API_TOKEN.
-    If the API token is not found, a ValueError is raised.
-    The function then initializes a Neptune Run object for experiment tracking and returns it.
-    """
     print("Initializing neptune logging...")
     try:
         api_token = os.environ["NEPTUNE_API_TOKEN"]
@@ -43,25 +25,6 @@ def initialize_neptune():
 
 
 def dict_to_neptune_loggable(dict):
-    """
-    Converts a dictionary to Neptune loggable format, converting non-string values to strings.
-
-    Parameters:
-    - dictionary (dict): The input dictionary.
-
-    Returns:
-    dict: The modified dictionary with non-string values converted to strings.
-
-    Example:
-    ```python
-    data_dict = {'key1': 123, 'key2': {'nested_key': True}}
-    neptune_loggable_dict = dict_to_neptune_loggable(data_dict)
-    ```
-
-    Note:
-    This function recursively traverses the input dictionary and converts non-string values to strings.
-    The modified dictionary is returned in a format suitable for logging with Neptune.
-    """
     for key in dict.keys():
         try:
             dict_to_neptune_loggable(dict[key])
@@ -71,98 +34,46 @@ def dict_to_neptune_loggable(dict):
 
 
 def handle_encoder_training(transformer_encoder, params):
-    """
-    Handles the training process for a transformer encoder.
+    ### DIRECOTRY GIVEN IN CONF
+    if type(params["transformer_encoder"]["train_paths"]) == str:
+        print(f'Loading train data for encoder... (Loaded {len(os.listdir(params["transformer_encoder"]["train_paths"]))} files)')    
+        train_paths = []
+        for file in os.listdir(params["transformer_encoder"]["train_paths"]):
+            train_fpath = os.path.join(params["transformer_encoder"]["train_paths"], file)
+            train_paths.append(train_fpath)
+    ### LIST OF FILES GIVEN ON CONF
+    else:
+        print(f"Loading train data for encoder... (Loaded {len(params['transformer_encoder']['train_paths'])} files)")    
+        train_paths = params["transformer_encoder"]["train_paths"]
 
-    Parameters:
-    - transformer_encoder (TransformerEncoder): The transformer encoder model to be trained.
-    - params (dict): A dictionary containing training parameters.
+    transformer_encoder_train_data_dict = {}
+    for i in range(len(train_paths)):
+        with open(train_paths[i], "rb") as file:
+            transformer_encoder_train_data = pickle.load(file)
+        log_name = ".".join(train_paths[i].split("/")[-1].split(".")[:-1])
+        transformer_encoder_train_data_dict[log_name] = [torch.Tensor(x).long() for x in transformer_encoder_train_data]
 
-    Returns:
-    None
 
-    Example:
-    ```python
-    transformer = TransformerEncoder(...)
-    training_params = {
-        "transformer_encoder": {
-            "epochs": 10,
-            "train_paths": ["path/to/train_data.pkl"],
-            "max_train_data_size": 1000,
-            "train_val_test_split": [0.8, 0.1, 0.1],
-            "batch_size": 32,
-            "lr": 0.001,
-            "save_path": "path/to/save/models",
-            "pad_token_id": 0,
-            "save_every_epoch": 2
-        }
-    }
-    handle_encoder_training(transformer, training_params)
-    ```
+    # Reduce maximum number of lines per dataset
+    if params["transformer_encoder"]["max_train_data_size"] is not None:
+        print(f'Keeping the first {params["transformer_encoder"]["max_train_data_size"]} lines from each dataset.')
+        for key in transformer_encoder_train_data_dict.keys():
+            transformer_encoder_train_data_dict[key] = transformer_encoder_train_data_dict[key][:int(params["transformer_encoder"]["max_train_data_size"])]
 
-    Note:
-    This function loads training data for the transformer encoder from the specified paths, reduces the dataset size if configured,
-    and then trains the transformer encoder model using the provided parameters.
-    The training data is organized into a dictionary, where keys are log source names and values are lists of PyTorch tensors.
-    The training process includes splitting the data into training, validation, and test sets, specifying batch size, learning rate,
-    and saving the model at specified intervals during training.
-    """
-    if params["transformer_encoder"]["epochs"] > 0:
-        print(f"Loading train data for encoder... (Loaded {len(params['transformer_encoder']['train_paths'])} files)")
-        if params["transformer_encoder"]["max_train_data_size"] is not None:
-            print(f'Keeping the first {params["transformer_encoder"]["max_train_data_size"]} lines from each dataset.')
-        transformer_encoder_train_data_dict = {}
-        for i in range(len(params["transformer_encoder"]["train_paths"])):
-            with open(params["transformer_encoder"]["train_paths"][i], "rb") as file:
-                transformer_encoder_train_data = pickle.load(file)
 
-            # Reduce lines of specified in config
-            if params["transformer_encoder"]["max_train_data_size"] is not None:
-                transformer_encoder_train_data = transformer_encoder_train_data[:int(params["transformer_encoder"]["max_train_data_size"])]
-
-            log_name = ".".join(params["transformer_encoder"]["train_paths"][i].split("/")[-1].split(".")[:-1])
-            transformer_encoder_train_data_dict[log_name] = [torch.Tensor(x).long() for x in transformer_encoder_train_data]
-
-        transformer_encoder.train(
-            data = transformer_encoder_train_data_dict, 
-            train_val_test_split = params["transformer_encoder"]["train_val_test_split"], 
-            batch_size = params["transformer_encoder"]["batch_size"], 
-            lr = params["transformer_encoder"]["lr"], 
-            save_path = params["transformer_encoder"]["save_path"], 
-            epochs = params["transformer_encoder"]["epochs"],
-            padding_value = params["transformer_encoder"]["pad_token_id"],
-            save_every_epoch=params["transformer_encoder"]["save_every_epoch"]
-        )
+    transformer_encoder.train(
+        data = transformer_encoder_train_data_dict, 
+        train_val_test_split = params["transformer_encoder"]["train_val_test_split"], 
+        batch_size = params["transformer_encoder"]["batch_size"], 
+        lr = params["transformer_encoder"]["lr"], 
+        save_path = params["transformer_encoder"]["save_path"], 
+        epochs = params["transformer_encoder"]["epochs"],
+        padding_value = params["transformer_encoder"]["pad_token_id"],
+        save_every_epoch=params["transformer_encoder"]["save_every_epoch"]
+    )
 
 
 def generate_openstack_labels(anomaly_detector_train_data_dict, anomaly_detector_train_labels_dict):
-    """
-    Generates labels for OpenStack log data based on log names.
-
-    Parameters:
-    - anomaly_detector_train_data_dict (dict): A dictionary where keys are log names, and values are lists of log lines.
-    - anomaly_detector_train_labels_dict (dict): A dictionary to store generated labels, where keys are log names, and values are torch tensors.
-
-    Returns:
-    None
-
-    Example:
-    ```python
-    train_data_dict = {
-        'openstack_abnormal_1': ['log line 1', 'log line 2', ...],
-        'openstack_normal_1': ['log line 1', 'log line 2', ...],
-        ...
-    }
-    train_labels_dict = {}
-    generate_openstack_labels(train_data_dict, train_labels_dict)
-    ```
-
-    Note:
-    This function generates binary labels for OpenStack log data based on the log names.
-    If the log name contains "openstack" and "abnormal" is not part of the name, the corresponding label is set to 0 (normal).
-    If "abnormal" is part of the name, the label is set to 1 (abnormal).
-    The generated labels are stored in the provided dictionary.
-    """
     for key in anomaly_detector_train_data_dict.keys():
         if "openstack" in key:
             if "abnormal" not in key:
@@ -172,40 +83,31 @@ def generate_openstack_labels(anomaly_detector_train_data_dict, anomaly_detector
 
 
 def load_train_data_detector(params):
-    """
-    Load train data for the anomaly detector from specified paths.
+    ### DIRECOTRY GIVEN IN CONF
+    if type(params["anomaly_detector"]["train_paths"]) == str:
+        print(f'Loading train data for encoder... (Loaded {len(os.listdir(params["anomaly_detector"]["train_paths"]))} files)')    
+        train_paths = []
+        for file in os.listdir(params["anomaly_detector"]["train_paths"]):
+            train_fpath = os.path.join(params["anomaly_detector"]["train_paths"], file)
+            train_paths.append(train_fpath)
+    ### LIST OF FILES GIVEN ON CONF
+    else:
+        print(f"Loading train data for encoder... (Loaded {len(params['transformer_encoder']['train_paths'])} files)")    
+        train_paths = params["anomaly_detector"]["train_paths"]
 
-    Parameters:
-    - params (dict): A dictionary containing configuration parameters, including train data paths.
+    print(f'Loading train data for detector...(Loaded {len(train_paths)} files)')
 
-    Returns:
-    dict: A dictionary where keys are log names, and values are torch tensors or nested dictionaries of torch tensors.
-
-    Example:
-    ```python
-    detector_params = {
-        'anomaly_detector': {
-            'train_paths': ['/path/to/log_data_1.pkl', '/path/to/log_data_2.pkl'],
-            ...
-        },
-        ...
-    }
-    detector_train_data = load_train_data_detector(detector_params)
-    ```
-
-    Note:
-    This function loads train data for the anomaly detector from specified pickle files.
-    It organizes the data into a dictionary, where keys are log names derived from file names, and values are torch tensors or nested dictionaries of torch tensors.
-    For log names containing "HDFS_1" or "hadoop" (case-insensitive), the function creates nested dictionaries to organize data according to their respective subcategories.
-    The loaded data is moved to the CUDA device for GPU acceleration.
-    """
-    print(f'Loading train data for detector...(Loaded {len(params["anomaly_detector"]["train_paths"])} files)')
     anomaly_detector_train_data_dict = {}
-    for i in range(len(params["anomaly_detector"]["train_paths"])):
-        with open(params["anomaly_detector"]["train_paths"][i], "rb") as file:
+    for i in range(len(train_paths)):
+        with open(train_paths[i], "rb") as file:
             anomaly_detector_train_data = pickle.load(file)
-        log_name = ".".join(params["anomaly_detector"]["train_paths"][i].split("/")[-1].split(".")[:-1])
+        log_name = ".".join(train_paths[i].split("/")[-1].split(".")[:-1])
+
         if "HDFS_1" in log_name or "hadoop" in log_name.lower():
+            if "HDFS_1" in log_name:
+                log_name = "HDFS_1"
+            elif "hadoop" in log_name.lower():
+                log_name = "hadoop"
             anomaly_detector_train_data_dict[log_name] = {}
             for key in anomaly_detector_train_data.keys():
                 anomaly_detector_train_data_dict[log_name][key] = [torch.Tensor(x).long().to("cuda") for x in anomaly_detector_train_data[key]]
@@ -219,42 +121,29 @@ def load_train_data_detector(params):
 
 
 def load_train_labels_detector(anomaly_detector_train_data_dict, params):
-    """
-    Load train labels for the anomaly detector from specified paths.
+    ### DIRECOTRY GIVEN IN CONF
+    if type(params["anomaly_detector"]["label_paths"]) == str:
+        print(f'Loading train data for encoder... (Loaded {len(os.listdir(params["anomaly_detector"]["label_paths"]))} files)')    
+        test_paths = []
+        for file in os.listdir(params["anomaly_detector"]["label_paths"]):
+            test_fpath = os.path.join(params["anomaly_detector"]["label_paths"], file)
+            test_paths.append(test_fpath)
+    ### LIST OF FILES GIVEN ON CONF
+    else:
+        print(f"Loading train data for encoder... (Loaded {len(params['transformer_encoder']['train_paths'])} files)")    
+        test_paths = params["anomaly_detector"]["label_paths"]
 
-    Parameters:
-    - anomaly_detector_train_data_dict (dict): A dictionary containing train data for the anomaly detector.
-    - params (dict): A dictionary containing configuration parameters, including label paths.
-
-    Returns:
-    dict: A dictionary where keys are log names, and values are torch tensors, nested dictionaries, or scalar values.
-
-    Example:
-    ```python
-    detector_params = {
-        'anomaly_detector': {
-            'train_paths': ['/path/to/log_data_1.pkl', '/path/to/log_data_2.pkl'],
-            'label_paths': ['/path/to/labels_1.pkl', '/path/to/labels_2.pkl'],
-            ...
-        },
-        ...
-    }
-    detector_train_data = load_train_data_detector(anomaly_detector_train_data_dict, detector_params)
-    detector_train_labels = load_train_labels_detector(detector_train_data, detector_params)
-    ```
-
-    Note:
-    This function loads train labels for the anomaly detector from specified pickle files.
-    It organizes the labels into a dictionary, where keys are log names derived from file names, and values are torch tensors, nested dictionaries, or scalar values.
-    For log names containing "HDFS_1" or "hadoop" (case-insensitive), the function creates nested dictionaries to organize labels according to their respective subcategories.
-    The loaded labels are either single torch tensors, nested dictionaries containing block-level labels, or scalar values for non-HDFS or non-Hadoop logs.
-    """
     anomaly_detector_train_labels_dict = {}
-    for i in range(len(params["anomaly_detector"]["label_paths"])):
-        with open(params["anomaly_detector"]["label_paths"][i], "rb") as file:
+    for i in range(len(test_paths)):
+        if "openstack" in test_paths[i]:
+            continue
+
+        with open(test_paths[i], "rb") as file:
             anomaly_detector_train_labels = pickle.load(file)
-        log_name = ".".join(params["anomaly_detector"]["train_paths"][i].split("/")[-1].split(".")[:-1])
+
+        log_name = ".".join(test_paths[i].split("/")[-1].split(".")[:-1])
         if "HDFS_1" in log_name:
+            log_name = "HDFS_1"
             anomaly_detector_train_labels_dict[log_name] = {}
             for line in anomaly_detector_train_labels:
                 block = line.split(",")[0].strip()
@@ -263,7 +152,8 @@ def load_train_labels_detector(anomaly_detector_train_data_dict, params):
                 else: 
                     label = 1
                 anomaly_detector_train_labels_dict[log_name][block] = label
-        elif "hadoop"in log_name.lower():
+        elif "hadoop" in log_name.lower():
+            log_name = "hadoop"
             anomaly_detector_train_labels_dict[log_name] = {}
             block_label = {}
             for line in anomaly_detector_train_labels:
@@ -276,37 +166,12 @@ def load_train_labels_detector(anomaly_detector_train_data_dict, params):
                 application_substing = "_".join(container.split("_")[:3])
                 anomaly_detector_train_labels_dict[log_name][container] = block_label[application_substing]
         else:
+            # BGL, Thunderbird
             anomaly_detector_train_labels_dict[log_name] = torch.Tensor(anomaly_detector_train_labels)
     return anomaly_detector_train_labels_dict
 
 
 def load_test_data_detector(params):
-    """
-    Load test data for the anomaly detector from specified paths.
-
-    Parameters:
-    - params (dict): A dictionary containing configuration parameters, including test data paths.
-
-    Returns:
-    dict: A dictionary where keys are log names, and values are lists of torch tensors.
-
-    Example:
-    ```python
-    detector_params = {
-        'anomaly_detector': {
-            'test_data_paths': ['/path/to/test_data_1.pkl', '/path/to/test_data_2.pkl'],
-            ...
-        },
-        ...
-    }
-    detector_test_data = load_test_data_detector(detector_params)
-    ```
-
-    Note:
-    This function loads test data for the anomaly detector from specified pickle files.
-    It organizes the test data into a dictionary, where keys are log names derived from file names, and values are lists of torch tensors.
-    The loaded test data is stored in the 'anomaly_detector_test_data_dict' dictionary, which can be used for further processing.
-    """
     anomaly_detector_test_data_dict = {}
     for i in range(len(params["anomaly_detector"]["test_data_paths"])):
         with open(params["anomaly_detector"]["test_data_paths"][i], "rb") as file:
@@ -318,32 +183,6 @@ def load_test_data_detector(params):
 
 
 def load_test_labels_detector(params):
-    """
-    Load test labels for the anomaly detector from specified paths.
-
-    Parameters:
-    - params (dict): A dictionary containing configuration parameters, including test label paths.
-
-    Returns:
-    dict: A dictionary where keys are log names, and values are torch tensors representing the test labels.
-
-    Example:
-    ```python
-    detector_params = {
-        'anomaly_detector': {
-            'test_labels': ['/path/to/test_labels_1.pkl', '/path/to/test_labels_2.pkl'],
-            ...
-        },
-        ...
-    }
-    detector_test_labels = load_test_labels_detector(detector_params)
-    ```
-
-    Note:
-    This function loads test labels for the anomaly detector from specified pickle files.
-    It organizes the test labels into a dictionary, where keys are log names derived from file names, and values are torch tensors.
-    The loaded test labels are stored in the 'anomaly_detector_test_labels_dict' dictionary, which can be used for further processing.
-    """
     anomaly_detector_test_labels_dict = {}
     for i in range(len(params["anomaly_detector"]["test_labels"])):
         with open(params["anomaly_detector"]["test_labels"][i], "rb") as file:
@@ -355,42 +194,16 @@ def load_test_labels_detector(params):
 
 
 def encode_data(transformer_encoder, data, batch_size, pad_token_id):
-    """
-    Encode data using a transformer encoder.
-
-    Parameters:
-    - transformer_encoder: An instance of a transformer encoder.
-    - data: The data to be encoded.
-    - batch_size (int): The batch size to use during encoding.
-    - pad_token_id: The padding token ID used during encoding.
-
-    Returns:
-    dict: A dictionary where keys represent log names, and values are torch tensors representing the encoded data.
-
-    Example:
-    ```python
-    encoder = TransformerEncoder(...)  # Assume this is an already initialized transformer encoder
-    input_data = {'HDFS_1': [...], 'Spark': [...], ...}
-    batch_size = 32
-    pad_token_id = 0
-    encoded_data = encode_data(encoder, input_data, batch_size, pad_token_id)
-    ```
-
-    Note:
-    This function encodes input data using the specified transformer encoder.
-    The data is organized into a dictionary, where keys are log names and values are torch tensors representing the encoded data.
-    The function prints information about the encoding process, including the shape of encoded data or the number of encoded blocks for specific logs.
-    """
     encoded = transformer_encoder.encode(
         data=data,
         batch_size = batch_size, 
         padding_value = pad_token_id
     )
-    for key in encoded.keys():
-        if "HDFS_1" in key or "hadoop" in key.lower():
-            print(f"Encoded {key} blocks:\t {len(encoded[key])}")
-        else:
-            print(f"Encoded {key} lines\t: {encoded[key].shape}")
+    #for key in encoded.keys():
+    #    if "HDFS_1" in key or "hadoop" in key.lower():
+    #        print(f"Encoded {key} blocks:\t {len(encoded[key])}")
+    #    else:
+    #        print(f"Encoded {key} lines\t: {encoded[key].shape}")
     return encoded
 
 
@@ -427,7 +240,8 @@ def main(conf_path):
     )
 
     # Encoder training
-    handle_encoder_training(transformer_encoder=transformer_encoder, params=params)
+    if params["transformer_encoder"]["epochs"] > 0:
+        handle_encoder_training(transformer_encoder=transformer_encoder, params=params)
 
     #####################
     ### DETECTOR PART ###

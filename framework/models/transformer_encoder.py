@@ -149,7 +149,7 @@ class TransformerEncoder():
                     all_train_losses.append(sum(train_losses)/len(train_losses))
                     print(f"Epoch: {epoch} step {step}:\n\tTrain loss: \t\t\t\t{all_train_losses[-1]:.04f}")
                     for key in val_loaders.keys():
-                            print(f"\tVal loss on {key}: \t\t{all_val_losses[key][-1]:.04f}")
+                            print(f"\tVal loss {all_val_losses[key][-1]:.04f} \t on {key}")
                     if self.run is not None:
                         self.run["transformer_encoder"]["train_loss"].log(all_train_losses[-1])
                         for key in val_loaders.keys():
