@@ -274,7 +274,7 @@ if __name__ == "__main__":
     )
     parser.add_argument('-d', '--data_folder', required=True)
     parser.add_argument('-s', '--save_folder', required=True) 
-    parser.add_argument('-v', '--vocab_size', default=1002) 
+    parser.add_argument('-v', '--vocab_size', default=1000) 
     parser.add_argument('-l', '--max_log_lines', default=5000000, type=int)
     parser.add_argument('-a', '--ascii_policy', required=True, choices=["remove", "special_char"])
     parser.add_argument('-n', '--num_policy', required=True, choices=["0_9_special_char", "num_special_char"])
