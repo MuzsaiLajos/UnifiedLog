@@ -224,27 +224,6 @@ class AnomalyDetector():
         self.run = run
     
     def balancing(self, x, y, ratio=1):      
-        """
-        Balance the positive and negative class ratio in the dataset.
-
-        Parameters:
-        - x (list): List of input samples.
-        - y (list): List of labels corresponding to the input samples.
-        - ratio (float): Desired ratio of negative to positive samples after balancing.
-
-        Returns:
-        tuple: A tuple containing balanced input samples and labels.
-
-        Example:
-        ```python
-        balanced_x, balanced_y = balancing(input_samples, labels, ratio=2)
-        ```
-
-        Note:
-        This function balances the positive and negative class ratio in the dataset. It randomly selects a subset of samples from the majority class
-        (negative samples if the number of positive samples is smaller, and vice versa) to achieve the desired ratio. The resulting balanced dataset
-        is returned as a tuple of balanced input samples and labels.
-        """
         print(f"All sampes: {len(y)} anomalious samples: {sum(y)}")
         print("Balancing the positive negative class ratio...")
 
@@ -292,36 +271,6 @@ class AnomalyDetector():
 
 
     def train(self, X, Y, train_val_test_split, save_path, lr, lr_decay_step_size, lr_decay_gamma, early_stop_tolerance, early_stop_min_delta, batch_size, epochs, balancing_ratio):
-        """
-        Train the anomaly detector model.
-
-        Parameters:
-        - X (dict): A dictionary where keys are log names, and values are lists of input samples.
-        - Y (dict): A dictionary where keys are log names, and values are lists of labels corresponding to the input samples.
-        - train_val_test_split (tuple): A tuple containing the proportions for splitting the dataset into training, validation, and test sets.
-        - save_path (str): The path to save the trained model.
-        - lr (float): The initial learning rate.
-        - lr_decay_step_size (int): Step size for learning rate decay.
-        - lr_decay_gamma (float): Gamma factor for learning rate decay.
-        - early_stop_tolerance (int): Tolerance for early stopping.
-        - early_stop_min_delta (float): Minimum change in loss for early stopping.
-        - batch_size (int): Batch size for training.
-        - epochs (int): Number of training epochs.
-        - balancing_ratio (float): Desired ratio of negative to positive samples after balancing.
-
-        Returns:
-        None
-
-        Example:
-        ```python
-        anomaly_detector.train(X_train, Y_train, train_val_test_split=(0.8, 0.1, 0.1), save_path="model.pkl", lr=0.001, epochs=50, batch_size=32, balancing_ratio=2.0)
-        ```
-
-        Note:
-        This function trains the anomaly detector model using the specified configuration. It performs dataset splitting, balancing, and training.
-        The training process includes early stopping, learning rate decay, and logging of relevant metrics such as loss, accuracy, precision, recall, and F1 score.
-        The trained model is saved at the specified path.
-        """
         t0 = time.time()
         _X = {}
         _Y = {}

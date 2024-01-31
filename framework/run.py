@@ -273,7 +273,7 @@ def main(conf_path):
     anomaly_detector = AnomalyDetector(
         run=run,
         load_path=params["anomaly_detector"]["load_path"],
-        embed_dim = params["anomaly_detector"]["embed_dim"], 
+        embed_dim = params["transformer_encoder"]["attn_layers"]["dim"], 
         ff_dim = params["anomaly_detector"]["ff_dim"], 
         max_len = params["anomaly_detector"]["max_len"], 
         num_heads = params["anomaly_detector"]["num_heads"], 
