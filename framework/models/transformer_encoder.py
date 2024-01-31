@@ -58,40 +58,6 @@ class TransformerEncoder():
 
 
     def train(self, data, train_val_test_split, batch_size, lr, save_path, epochs, padding_value, save_every_epoch):
-        """
-        Trains the transformer encoder.
-
-        Parameters:
-        - data (dict): A dictionary containing training data, where keys are log source names, and values are lists of PyTorch tensors.
-        - train_val_test_split (list): A list representing the ratio of data to use for training, validation, and test sets.
-        - batch_size (int): The batch size for training.
-        - lr (float): The learning rate for training.
-        - save_path (str): The path to save the trained model.
-        - epochs (int): The number of training epochs.
-        - padding_value: The padding token ID used during training.
-        - save_every_epoch (bool): If True, save the model at the end of each epoch.
-
-        Returns:
-        None
-
-        Example:
-        ```python
-        transformer = TransformerEncoder(...)
-        training_data = {'HDFS_1': [...], 'Spark': [...], ...}
-        train_val_test_split = [0.8, 0.1, 0.1]
-        batch_size = 32
-        lr = 0.001
-        save_path = "/path/to/save/models"
-        epochs = 10
-        padding_value = 0
-        save_every_epoch = True
-        transformer.train(training_data, train_val_test_split, batch_size, lr, save_path, epochs, padding_value, save_every_epoch)
-        ```
-
-        Note:
-        This method trains the transformer encoder using the specified training data, splitting it into training and validation sets.
-        It uses the AdamW optimizer, logs training and validation losses, and saves the model at the specified intervals.
-        """
         print("Starting training of transformer encoder...")
         concatenated_data = []
         for key in data.keys():
@@ -159,7 +125,7 @@ class TransformerEncoder():
                 if save_every_epoch:
                     _save_path = ".".join(_save_path.split(".")[:-1]) + f"_epoch_{epoch+1}." + _save_path.split(".")[-1]
                 if not os.path.isdir("/".join(_save_path.split("/")[:-1])):
-                    os.mkdir("/".join(_save_path.split("/")[:-1])+"/")
+                    os.makedirs("/".join(_save_path.split("/")[:-1])+"/")
                 self.run["transformer_encoder"]["save_path"] = _save_path
                 pickle.dump(self.transformer, open(_save_path, "wb"))
         print(f"Training took {time.time()-t0:.2f}s")
