@@ -325,7 +325,7 @@ class AnomalyDetector():
                     self._Y_test[key] += _Y[key][s_index:e_index]
                     self._X_test[key] += _X[key][s_index:e_index]
                     
-                for s_index, e_index in hadoop_normal_indexes:
+                for s_index, e_index in reversed(hadoop_normal_indexes): #you need this reversed as poping an index changes the indexes after it
                     for idx in range(s_index,e_index,1):
                         _Y[key].pop(idx)
                         _X[key].pop(idx)
