@@ -127,36 +127,12 @@ class TransformerEncoder():
                 if not os.path.isdir("/".join(_save_path.split("/")[:-1])):
                     os.makedirs("/".join(_save_path.split("/")[:-1])+"/")
                 self.run["transformer_encoder"]["save_path"] = _save_path
-                pickle.dump(self.transformer, open(_save_path, "wb"))
+                with open(_save_path, "wb") as save_file:
+                    pickle.dump(self.transformer, save_file)
         print(f"Training took {time.time()-t0:.2f}s")
 
 
     def encode(self, data, batch_size, padding_value):
-        """
-        Encodes data using the trained transformer encoder.
-
-        Parameters:
-        - data (dict): A dictionary containing log data, where keys are log source names, and values are either lists of PyTorch tensors or nested dictionaries.
-        - batch_size (int): The batch size for encoding.
-        - padding_value: The padding token ID used during encoding.
-
-        Returns:
-        dict: A dictionary where keys represent log names, and values are torch tensors representing the encoded data.
-
-        Example:
-        ```python
-        transformer = TransformerEncoder(...)
-        input_data = {'HDFS_1': {...}, 'Spark': {...}, ...}
-        batch_size = 32
-        padding_value = 0
-        encoded_data = transformer.encode(input_data, batch_size, padding_value)
-        ```
-
-        Note:
-        This method encodes input data using the trained transformer encoder.
-        The data is organized into a dictionary, where keys are log names, and values are torch tensors representing the encoded data.
-        The function prints information about the encoding process, including the shape of the encoded data or the number of encoded blocks for specific logs.
-        """
         print("Encoding data for anomaly detector...")
         loaders = {}
         for key in data.keys():
