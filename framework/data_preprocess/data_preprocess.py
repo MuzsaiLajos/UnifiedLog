@@ -191,8 +191,6 @@ def tokenize_HDFS_for_detector(data_path, tokenizer, save_path, max_log_lines):
         encoded = []
         for line in blocks[key]:
             line = line.strip()
-            line = remove_non_ascii(line)
-            line = replace_num(line)
             line = "[CLS]" + line + "[SEP]"
             encoded.append(tokenizer.encode(line).ids)
         if len(blocks[key]) > 20:
@@ -250,10 +248,7 @@ def tokenize_Hadoop_for_detector(data_path, tokenizer, save_path, max_log_lines)
     for key in hadoop_apps.keys():
         encoded = []
         for line in hadoop_apps[key]:
-            #print(line)
             line = line.strip()
-            line = remove_non_ascii(line)
-            line = replace_num(line)
             line = "[CLS]" + line + "[SEP]"
             encoded.append(tokenizer.encode(line).ids)
         if len(encoded) > 20:
@@ -274,7 +269,7 @@ if __name__ == "__main__":
     )
     parser.add_argument('-d', '--data_folder', required=True)
     parser.add_argument('-s', '--save_folder', required=True) 
-    parser.add_argument('-v', '--vocab_size', default=1000) 
+    parser.add_argument('-v', '--vocab_size', default=1000, type=int) 
     parser.add_argument('-l', '--max_log_lines', default=5000000, type=int)
     parser.add_argument('-a', '--ascii_policy', required=True, choices=["remove", "special_char"])
     parser.add_argument('-n', '--num_policy', required=True, choices=["0_9_special_char", "num_special_char"])
@@ -286,6 +281,8 @@ if __name__ == "__main__":
         os.makedirs(args.save_folder)
 
     data_to_tokenize = get_data_to_tokenize(data_folder=args.data_folder, max_log_lines=args.max_log_lines, save_path=args.save_folder)
+
+    print("data_to_tokenize", len(data_to_tokenize["HDFS"]))
 
     # Create dataframe and suffle rows to mix data for the tokeniaztion
     data_df = pd.DataFrame({'log_text': [item for sublist in data_to_tokenize.values() for item in sublist]})
