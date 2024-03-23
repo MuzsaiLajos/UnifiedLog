@@ -17,6 +17,9 @@ archive
 *plot_for_paper
 *tmp
 framework/data_preprocess/preprocessed*
+framework/data_preprocess/example*
+framework/data_preprocess/testing
+framework/data_preprocess/conf
 *.env
 
 
