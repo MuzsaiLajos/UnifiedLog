@@ -326,7 +326,8 @@ class AnomalyDetector():
                     self._X_test[key] += _X[key][s_index:e_index]
                     
                 for s_index, e_index in reversed(hadoop_normal_indexes): #you need this reversed as poping an index changes the indexes after it
-                    for idx in range(s_index,e_index,1):
+                #for s_index, e_index in hadoop_normal_indexes:
+                    for idx in range(s_index,e_index, 1):
                         _Y[key].pop(idx)
                         _X[key].pop(idx)
                 
@@ -536,38 +537,67 @@ class AnomalyDetector():
         print(f"Training took: {time.time()-t0}s")
 
     def eval(self, batch_size, X_test=None, Y_test=None):
-        """
-        Evaluate the anomaly detector model on test data.
-
-        Parameters:
-        - batch_size (int): Batch size for evaluation.
-        - X_test (dict, optional): A dictionary where keys are log names, and values are lists of input samples for testing.
-        - Y_test (dict, optional): A dictionary where keys are log names, and values are lists of labels corresponding to the input samples for testing.
-
-        Returns:
-        None
-
-        Example:
-        ```python
-        anomaly_detector.eval(batch_size=32, X_test=X_test_data, Y_test=Y_test_labels)
-        ```
-
-        Note:
-        This function evaluates the anomaly detector model on the specified test data. If test data is not provided, it uses the internal test data.
-        The evaluation includes computing precision, recall, and F1 score for each log category and logging the results.
-        """
         print("Evaluating anomaly detector...")
-        if X_test is not None:
-            for key in X_test.keys():
-                self._X_test[key] = []
-                self._Y_test[key] = []
-
-            for key in X_test.keys():
+        _X = {}
+        _Y = {}
+        for key in X_test.keys():
+            _X[key] = []
+            _Y[key] = []
+        
+        for key in X_test.keys():
+            if "HDFS_1" in key or "hadoop" in key.lower():
+                if "hadoop" in key:
+                    hadoop_normal_indexes = []
+                for block in X_test[key].keys():
+                    if Y_test[key][block] == 0:
+                        normal_start_ind = len(_X[key])+1
+                    for i in range(len(X_test[key][block])-self.max_len):
+                        x = X_test[key][block][i : min(i + self.max_len, len(X_test[key][block]))]
+                        y = torch.tensor(Y_test[key][block])
+                        _X[key].append(x)
+                        _Y[key].append(y)
+                    if Y_test[key][block] == 0 and "hadoop" in key:
+                        hadoop_normal_indexes.append([normal_start_ind,len(_X[key])])
+            else:
                 for i in range(len(X_test[key])-self.max_len):
                     x = X_test[key][i : min(i + self.max_len, len(X_test[key]))]
                     y = torch.max(Y_test[key][i : min(i + self.max_len, len(Y_test[key]))])
-                    self._X_test[key].append(x)
-                    self._Y_test[key].append(y)
+                    _X[key].append(x)
+                    _Y[key].append(y)
+
+        for key in X_test.keys():
+            self._Y_test[key] = []
+            self._X_test[key] = []
+            if "hadoop" in key:
+
+                self._Y_test[key] = []
+                self._X_test[key] = []
+                for s_index, e_index in hadoop_normal_indexes:
+                    self._Y_test[key] += _Y[key][s_index:e_index]
+                    self._X_test[key] += _X[key][s_index:e_index]
+                    
+                for s_index, e_index in reversed(hadoop_normal_indexes): #you need this reversed as poping an index changes the indexes after it
+                #for s_index, e_index in hadoop_normal_indexes:
+                    for idx in range(s_index,e_index, 1):
+                        _Y[key].pop(idx)
+                        _X[key].pop(idx)
+                
+            self._Y_test[key] += _Y[key]
+            self._X_test[key] += _X[key]
+
+        ### Manage openstack
+        for key in X_test.keys():
+            if "openstack" in key:
+                self._Y_test["openstack"] = []
+                self._X_test["openstack"] = []
+                break
+        
+        for key in X_test.keys():
+            if "openstack" in key:
+                self._Y_test["openstack"] += _Y[key]
+                self._X_test["openstack"] += _X[key]
+                self._Y_test.pop(key)
+                self._X_test.pop(key)
         
         with torch.no_grad():
             for key in self._X_test.keys():
@@ -590,11 +620,11 @@ class AnomalyDetector():
                 truth = np.array(truth)
                 report = precision_recall_fscore_support(truth, preds, zero_division=0)
                 try:
-                    print(f"Testing model on {key}: precision: {report[0][1]} recall: {report[1][1]} f1: {report[2][1]}")
+                    print(f"Testing model on {key}: precision: {report[0][1]} recall: {report[1][1]} f1: {report[2][1]} | anomaly/all {np.sum(truth == 1)}/{len(truth)}")
                     if self.run is not None:
                         self.run["anomaly_detector"]["test"][key]["precision"]   = report[0][1]
                         self.run["anomaly_detector"]["test"][key]["recall"]      = report[1][1]
                         self.run["anomaly_detector"]["test"][key]["f1"]          = report[2][1]
                 except:
-                    print("No anomalies in test data")
+                    print(f"No anomalies in test data, out of {len(truth)} elements")
                 

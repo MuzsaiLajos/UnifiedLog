@@ -73,35 +73,39 @@ def handle_encoder_training(transformer_encoder, params):
     )
 
 
-def generate_openstack_labels(anomaly_detector_train_data_dict, anomaly_detector_train_labels_dict):
-    for key in anomaly_detector_train_data_dict.keys():
+def generate_openstack_labels(anomaly_detector_data_dict, anomaly_detector_labels_dict):
+    for key in anomaly_detector_data_dict.keys():
         if "openstack" in key:
             if "abnormal" not in key:
-                anomaly_detector_train_labels_dict[key] = torch.zeros(len(anomaly_detector_train_data_dict[key]))
+                anomaly_detector_labels_dict[key] = torch.zeros(len(anomaly_detector_data_dict[key]))
             else:
-                anomaly_detector_train_labels_dict[key] = torch.ones(len(anomaly_detector_train_data_dict[key]))
+                anomaly_detector_labels_dict[key] = torch.ones(len(anomaly_detector_data_dict[key]))
 
 
-def load_train_data_detector(params):
+def load_data_detector(params, train=True):
+    if train:
+        path_param = "train_paths"
+    else:
+        path_param = "test_data_paths"
     ### DIRECOTRY GIVEN IN CONF
-    if type(params["anomaly_detector"]["train_paths"]) == str:
-        print(f'Loading train data for encoder... (Loaded {len(os.listdir(params["anomaly_detector"]["train_paths"]))} files)')    
-        train_paths = []
-        for file in os.listdir(params["anomaly_detector"]["train_paths"]):
-            train_fpath = os.path.join(params["anomaly_detector"]["train_paths"], file)
-            train_paths.append(train_fpath)
+    if type(params["anomaly_detector"][path_param]) == str:
+        print(f'Loading train data for encoder... (Loaded {len(os.listdir(params["anomaly_detector"][path_param]))} files)')    
+        paths = []
+        for file in os.listdir(params["anomaly_detector"][path_param]):
+            train_fpath = os.path.join(params["anomaly_detector"][path_param], file)
+            paths.append(train_fpath)
     ### LIST OF FILES GIVEN ON CONF
     else:
-        print(f"Loading train data for encoder... (Loaded {len(params['transformer_encoder']['train_paths'])} files)")    
-        train_paths = params["anomaly_detector"]["train_paths"]
+        print(f"Loading train data for encoder... (Loaded {len(params['anomaly_detector'][path_param])} files)")    
+        paths = params["anomaly_detector"][path_param]
 
-    print(f'Loading train data for detector...(Loaded {len(train_paths)} files)')
+    print(f'Loading train data for detector...(Loaded {len(paths)} files)')
 
     anomaly_detector_train_data_dict = {}
-    for i in range(len(train_paths)):
-        with open(train_paths[i], "rb") as file:
+    for i in range(len(paths)):
+        with open(paths[i], "rb") as file:
             anomaly_detector_train_data = pickle.load(file)
-        log_name = ".".join(train_paths[i].split("/")[-1].split(".")[:-1])
+        log_name = ".".join(paths[i].split("/")[-1].split(".")[:-1])
 
         if "HDFS_1" in log_name or "hadoop" in log_name.lower():
             if "HDFS_1" in log_name:
@@ -120,28 +124,34 @@ def load_train_data_detector(params):
     return anomaly_detector_train_data_dict
 
 
-def load_train_labels_detector(anomaly_detector_train_data_dict, params):
+def load_labels_detector(anomaly_detector_data_dict, params, train=True):
+    if train:
+        label_path_param = "label_paths"
+        data_type_str = "train"
+    else:
+        label_path_param = "test_labels"
+        data_type_str = "test"
     ### DIRECOTRY GIVEN IN CONF
-    if type(params["anomaly_detector"]["label_paths"]) == str:
-        print(f'Loading train data for encoder... (Loaded {len(os.listdir(params["anomaly_detector"]["label_paths"]))} files)')    
-        test_paths = []
-        for file in os.listdir(params["anomaly_detector"]["label_paths"]):
-            test_fpath = os.path.join(params["anomaly_detector"]["label_paths"], file)
-            test_paths.append(test_fpath)
+    if type(params["anomaly_detector"][label_path_param]) == str:     
+        print(f'Loading {data_type_str} data for detector... (Loaded {len(os.listdir(params["anomaly_detector"][label_path_param]))} files)')    
+        paths = []
+        for file in os.listdir(params["anomaly_detector"][label_path_param]):
+            fpath = os.path.join(params["anomaly_detector"][label_path_param], file)
+            paths.append(fpath)
     ### LIST OF FILES GIVEN ON CONF
     else:
-        print(f"Loading train data for encoder... (Loaded {len(params['transformer_encoder']['train_paths'])} files)")    
-        test_paths = params["anomaly_detector"]["label_paths"]
+        print(f"Loading {data_type_str} data for detector... (Loaded {len(params['anomaly_detector'][label_path_param])} files)")    
+        paths = params["anomaly_detector"][label_path_param]
 
     anomaly_detector_train_labels_dict = {}
-    for i in range(len(test_paths)):
-        if "openstack" in test_paths[i]:
+    for i in range(len(paths)):
+        if "openstack" in paths[i]:
             continue
 
-        with open(test_paths[i], "rb") as file:
+        with open(paths[i], "rb") as file:
             anomaly_detector_train_labels = pickle.load(file)
 
-        log_name = ".".join(test_paths[i].split("/")[-1].split(".")[:-1])
+        log_name = ".".join(paths[i].split("/")[-1].split(".")[:-1])
         if "HDFS_1" in log_name:
             log_name = "HDFS_1"
             anomaly_detector_train_labels_dict[log_name] = {}
@@ -162,7 +172,7 @@ def load_train_labels_detector(anomaly_detector_train_data_dict, params):
                     block_label[block] = 0
                 else: 
                     block_label[block] = 1
-            for container in anomaly_detector_train_data_dict[log_name].keys():
+            for container in anomaly_detector_data_dict[log_name].keys():
                 application_substing = "_".join(container.split("_")[:3])
                 anomaly_detector_train_labels_dict[log_name][container] = block_label[application_substing]
         else:
@@ -171,39 +181,12 @@ def load_train_labels_detector(anomaly_detector_train_data_dict, params):
     return anomaly_detector_train_labels_dict
 
 
-def load_test_data_detector(params):
-    anomaly_detector_test_data_dict = {}
-    for i in range(len(params["anomaly_detector"]["test_data_paths"])):
-        with open(params["anomaly_detector"]["test_data_paths"][i], "rb") as file:
-            anomaly_detector_test_data = pickle.load(file)
-        log_name = ".".join(params["anomaly_detector"]["test_data_paths"][i].split("/")[-1].split(".")[:-1])
-        anomaly_detector_test_data_dict[log_name] = [torch.Tensor(x).long().to("cuda") for x in anomaly_detector_test_data]
-
-    return anomaly_detector_test_data_dict
-
-
-def load_test_labels_detector(params):
-    anomaly_detector_test_labels_dict = {}
-    for i in range(len(params["anomaly_detector"]["test_labels"])):
-        with open(params["anomaly_detector"]["test_labels"][i], "rb") as file:
-            anomaly_detector_test_labels = pickle.load(file)
-        log_name = ".".join(params["anomaly_detector"]["test_data_paths"][i].split("/")[-1].split(".")[:-1])
-        anomaly_detector_test_labels_dict[log_name] = torch.Tensor(anomaly_detector_test_labels)
-
-    return anomaly_detector_test_labels_dict
-
-
 def encode_data(transformer_encoder, data, batch_size, pad_token_id):
     encoded = transformer_encoder.encode(
         data=data,
         batch_size = batch_size, 
         padding_value = pad_token_id
     )
-    #for key in encoded.keys():
-    #    if "HDFS_1" in key or "hadoop" in key.lower():
-    #        print(f"Encoded {key} blocks:\t {len(encoded[key])}")
-    #    else:
-    #        print(f"Encoded {key} lines\t: {encoded[key].shape}")
     return encoded
 
 
@@ -248,18 +231,21 @@ def main(conf_path):
     #####################
 
     # Load data for detector
-    anomaly_detector_train_data_dict = load_train_data_detector(params=params)
+    anomaly_detector_train_data_dict = load_data_detector(params=params, train=True)
 
     # Load labels for detector
-    anomaly_detector_train_labels_dict = load_train_labels_detector(anomaly_detector_train_data_dict=anomaly_detector_train_data_dict, params=params)
+    anomaly_detector_train_labels_dict = load_labels_detector(anomaly_detector_data_dict=anomaly_detector_train_data_dict, params=params, train=True)
 
     # Openstack label generation
-    generate_openstack_labels(anomaly_detector_train_data_dict=anomaly_detector_train_data_dict, anomaly_detector_train_labels_dict=anomaly_detector_train_labels_dict)
+    generate_openstack_labels(anomaly_detector_data_dict=anomaly_detector_train_data_dict, anomaly_detector_labels_dict=anomaly_detector_train_labels_dict)
 
 
     ### Loading test data
-    anomaly_detector_test_data_dict = load_test_data_detector(params=params)
-    anomaly_detector_test_labels_dict = load_test_labels_detector(params=params)
+    anomaly_detector_test_data_dict = load_data_detector(params=params, train=False)
+    anomaly_detector_test_labels_dict = load_labels_detector(anomaly_detector_data_dict=anomaly_detector_test_data_dict, params=params, train=False)
+
+    # Openstack label generation
+    generate_openstack_labels(anomaly_detector_data_dict=anomaly_detector_test_data_dict, anomaly_detector_labels_dict=anomaly_detector_test_labels_dict)
 
     # Encode loaded data with encoder
     encoded_train = encode_data(
