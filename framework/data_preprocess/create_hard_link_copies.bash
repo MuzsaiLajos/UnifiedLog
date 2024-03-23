@@ -1,11 +1,10 @@
 #!/bin/bash
 
 # Source directory containing .pkl files
-source_dir="/home/mlajos/UnifiedLog/framework/data_preprocess/preprocessed_ascii_spec_0_9_spec_10m_bigger_token_size_1002/tokenized/"
+source_dir="preprocessed_NUM_5m/tokenized/"
 
 # Destination directory for hard links
-dest_dir="/home/mlajos/UnifiedLog/framework/data_preprocess/preprocessed_ascii_spec_0_9_spec_10m_bigger_token_size_1002/tokenized_no_bgl/"
-
+dest_dir="tokenized_no_thunderbird/"
 # Create the destination directory if it doesn't exist
 mkdir -p "$dest_dir"
 
